@@ -10,56 +10,35 @@ permissions:
 jobs:
   prepare:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout starter repository
         uses: actions/checkout@v4
 
-      - name: Install build tools
+      - name: Install Git and build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            git cmake ninja-build python3 \
-            openjdk-17-jdk
+          sudo apt-get install -y git cmake ninja-build python3
 
       - name: Install Android NDK
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r27c
 
-      - name: Clone game source with submodules
+      - name: Clone game source
         run: |
           git clone --recurse-submodules \
             --branch windows-v2.1.7 \
             https://github.com/FelipePrado0/gow3_pc.git \
             gow3_pc
 
-      - name: Record Android build environment
+      - name: Check Android toolchain and source
         run: |
-          echo "=== Android NDK ==="
+          echo "=== NDK ==="
           echo "$ANDROID_NDK_HOME"
-          echo "=== NDK compiler ==="
-          find "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt" \
-            -name 'aarch64-linux-android*-clang' \
-            -type f | head -n 5
           echo "=== Source commit ==="
           git -C gow3_pc rev-parse HEAD
-          echo "=== Submodule status ==="
+          echo "=== Submodules ==="
           git -C gow3_pc submodule status
-          echo "=== Android build files ==="
-          find gow3_pc -maxdepth 4 \
-            \( -name 'build.gradle*' \
-            -o -name 'Android.mk' \
-            -o -name 'Application.mk' \
-            -o -name 'CMakeLists.txt' \) \
-            -print
-
-      - name: Upload preparation report
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-arm64-preparation
-          path: |
-            gow3_pc/CMakeLists.txt
-          if-no-files-found: warn
-          retention-days: 7
+          echo "=== CMake files ==="
+          find gow3_pc -name CMakeLists.txt -print
 ```
