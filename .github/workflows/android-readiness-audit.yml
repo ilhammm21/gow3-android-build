@@ -1,0 +1,79 @@
+
+name: GOW3 Android ARM64 - Readiness Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/android-readiness-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout helper repository
+        uses: actions/checkout@v4
+
+      - name: Install audit tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git cmake ninja-build ripgrep file
+
+      - name: Fetch source and submodules
+        run: |
+          git clone --branch windows-v2.1.7 --depth 1 --recurse-submodules https://github.com/FelipePrado0/gow3_pc.git upstream
+          cd upstream
+          git submodule update --init --recursive
+
+      - name: Audit source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p audit
+          cd upstream
+          {
+            echo "GOW3 Android ARM64 Readiness Audit"
+            echo "Tag: windows-v2.1.7"
+            echo "Commit: $(git rev-parse HEAD)"
+            echo
+            echo "=== Submodule status ==="
+            git submodule status --recursive
+            echo
+            echo "=== magic_enum header locations ==="
+            find gpu/third_party/magic_enum \( -iname '*magic_enum*.hpp' -o -iname '*magic_enum*.h' \) 2>/dev/null | head -50 || true
+            echo
+            echo "=== CMake files ==="
+            find . \( -name CMakeLists.txt -o -name '*.cmake' \) | sort | head -250
+            echo
+            echo "=== Android and platform references ==="
+            rg -n -i 'WIN32|ANDROID|UNIX|X11|SDL3|Vulkan|Boost|Zydis|FFMPEG|PkgConfig|find_package|pkg_check_modules|CMAKE_SYSTEM_PROCESSOR' --glob 'CMakeLists.txt' --glob '*.cmake' . || true
+            echo
+            echo "=== CPU and OS-specific references ==="
+            rg -n -i 'x86_64|x86-64|amd64|__x86_64__|_M_X64|windows\.h|Win32|VirtualAlloc|VirtualProtect|__declspec|intrin\.h|sys/mman\.h|mmap\(' --glob '*.{h,hpp,c,cc,cpp,cxx,cmake,txt}' . | head -500 || true
+            echo
+            echo "=== Dependency and Android build manifests ==="
+            find . -maxdepth 4 \( -iname '*vcpkg*' -o -iname 'conanfile*' -o -iname 'CMakePresets.json' -o -iname 'Android.mk' -o -iname 'Application.mk' -o -iname 'build.gradle*' \) -print
+            echo
+            echo "=== Top-level files ==="
+            ls -la
+            echo
+            echo "=== GPU CMakeLists.txt ==="
+            if [ -f gpu/CMakeLists.txt ]; then sed -n '1,260p' gpu/CMakeLists.txt; fi
+            echo
+            echo "=== Main CMakeLists.txt ==="
+            if [ -f CMakeLists.txt ]; then sed -n '1,260p' CMakeLists.txt; fi
+          } > ../audit/android-readiness-report.txt
+
+      - name: Upload readiness report
+        uses: actions/upload-artifact@v4
+        with:
+          name: GOW3-Android-Readiness-Report
+          path: audit/android-readiness-report.txt
+          if-no-files-found: error
+          retention-days: 14
