@@ -30,7 +30,16 @@ jobs:
             https://github.com/FelipePrado0/gow3_pc.git \
             gow3_pc
 
-      - name: Check Android toolchain and source
+      - name: Check Android toolchain and source```yaml
+      - name: Upload preparation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-arm64-preparation
+          path: |
+            gow3_pc/CMakeLists.txt
+          if-no-files-found: warn
+          retention-days: 7
+```
         run: |
           echo "=== NDK ==="
           echo "$ANDROID_NDK_HOME"
