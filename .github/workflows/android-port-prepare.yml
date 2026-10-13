@@ -8,7 +8,9 @@ permissions:
 
 jobs:
   prepare:
+    name: Prepare Android ARM64 Source
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout starter repository
         uses: actions/checkout@v4
@@ -32,19 +34,24 @@ jobs:
 
       - name: Check source and toolchain
         run: |
-          echo "=== NDK ==="
-          echo "$ANDROID_NDK_HOME"
-          echo "=== Source commit ==="
-          git -C gow3_pc rev-parse HEAD
-          echo "=== Submodules ==="
-          git -C gow3_pc submodule status
-          echo "=== CMake files ==="
-          find gow3_pc -name CMakeLists.txt -print
-          
-      - name: Upload preparation report
+          mkdir -p output
+          echo "Android ARM64 preparation report" > output/report.txt
+          echo "" >> output/report.txt
+          echo "NDK path: $ANDROID_NDK_HOME" >> output/report.txt
+          echo "Source commit:" >> output/report.txt
+          git -C gow3_pc rev-parse HEAD >> output/report.txt
+          echo "" >> output/report.txt
+          echo "Submodule status:" >> output/report.txt
+          git -C gow3_pc submodule status >> output/report.txt
+          echo "" >> output/report.txt
+          echo "CMake files:" >> output/report.txt
+          find gow3_pc -name CMakeLists.txt -print >> output/report.txt
+          echo "Preparation report created."
+
+      - name: Upload preparation artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-arm64-preparation
-          path: gow3_pc/CMakeLists.txt
+          path: output/report.txt
           if-no-files-found: error
           retention-days: 7
