@@ -48,4 +48,3 @@ jobs:
           path: gow3_pc/CMakeLists.txt
           if-no-files-found: error
           retention-days: 7
-```
