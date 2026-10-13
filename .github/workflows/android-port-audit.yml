@@ -1,0 +1,83 @@
+name: GOW3 Android ARM64 - Source Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'gow3_pc-windows-v2.1.7.zip'
+      - '.github/workflows/android-port-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Audit source for Android porting
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -f gow3_pc-windows-v2.1.7.zip ]]; then
+            echo "::error::Upload gow3_pc-windows-v2.1.7.zip to the repository root first."
+            exit 1
+          fi
+          unzip -q gow3_pc-windows-v2.1.7.zip -d source
+          ROOT="source/gow3_pc-windows-v2.1.7"
+          test -f "$ROOT/README.md"
+          test -f "$ROOT/gpu/CMakeLists.txt"
+          mkdir -p audit
+
+          {
+            echo "GOW3 Android ARM64 source audit"
+            echo "Generated: $(date -u +'%Y-%m-%d %H:%M UTC')"
+            echo
+            echo "=== Project facts ==="
+            grep -n -E 'Windows 10|x86-64|No game files are included|Linux \\(AppImage, experimental\\)' "$ROOT/README.md" || true
+            echo
+            echo "=== Git submodules declared in archive ==="
+            if [[ -f "$ROOT/.gitmodules" ]]; then
+              cat "$ROOT/.gitmodules"
+            else
+              echo "No .gitmodules file found."
+            fi
+            echo
+            echo "=== CMake platform checks ==="
+            grep -RIn --include='CMakeLists.txt' --include='*.cmake' -E 'X11|PkgConfig::X11|WIN32|ANDROID|FFMPEG|SDL3|Zydis|Boost|Vulkan' "$ROOT/gpu" | head -240 || true
+            echo
+            echo "=== Android readiness checks ==="
+            echo "Source archive extracted: yes"
+            echo "GPU CMake entry point present: yes"
+            echo "Git metadata included in ZIP: no (ZIP archives normally omit .git history)"
+            echo "Submodules may be absent from ZIP: check each directory below"
+            for p in \
+              "$ROOT/gpu/third_party/fsr-vulkan/CMakeLists.txt" \
+              "$ROOT/gpu/third_party/imgui/imgui.h" \
+              "$ROOT/gpu/third_party/magic_enum/include/magic_enum.hpp" \
+              "$ROOT/gpu/third_party/miniz/miniz.h" \
+              "$ROOT/gpu/third_party/xbyak/xbyak/xbyak.h" \
+              "$ROOT/third_party/LibAtrac9/C/src"; do
+              if [[ -e "$p" ]]; then echo "PRESENT  $p"; else echo "MISSING  $p"; fi
+            done
+            echo
+            echo "=== CMake configure attempt ==="
+            echo "This first pass deliberately audits dependencies before trying to build the complete GPU target."
+            echo "Reason: upstream CMake currently expects desktop dependencies, including FFmpeg pkg-config modules, and the archive may omit submodule contents."
+          } > audit/android-port-audit.txt
+
+          echo "Audit report created:"
+          cat audit/android-port-audit.txt
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: GOW3-Android-Port-Audit
+          path: audit/android-port-audit.txt
+          if-no-files-found: error
+          retention-days: 14
