@@ -39,7 +39,6 @@ jobs:
             gow3_pc/CMakeLists.txt
           if-no-files-found: warn
           retention-days: 7
-```
         run: |
           echo "=== NDK ==="
           echo "$ANDROID_NDK_HOME"
