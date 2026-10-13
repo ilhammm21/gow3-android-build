@@ -1,0 +1,17 @@
+
+name: Android ARM64 Runtime Port
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start runtime inspection
+        run: |
+          echo "Runtime inspection workflow is ready."
+          echo "This does not build an Android APK yet."
