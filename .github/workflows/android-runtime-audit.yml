@@ -1,0 +1,45 @@
+
+name: GOW3 Runtime Portability Audit
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch source
+        run: |
+          git clone --branch windows-v2.1.7 --depth 1 --recurse-submodules https://github.com/FelipePrado0/gow3_pc.git upstream
+          cd upstream
+          git submodule update --init --recursive
+
+      - name: Inspect runtime source
+        shell: bash
+        run: |
+          set -eu
+          cd upstream
+          mkdir -p ../audit
+          {
+            echo "=== Runtime source files ==="
+            find src -maxdepth 2 -type f \( -name 'runtime*.c' -o -name 'runtime*.h' -o -name 'compat*.c' -o -name 'compat*.h' -o -name 'probe.c' \) -print | sort
+
+            echo
+            echo "=== Platform-specific APIs and CPU assumptions ==="
+            rg -n -i 'windows\.h|VirtualAlloc|VirtualProtect|VirtualFree|GetProcAddress|LoadLibrary|WinSock|bcrypt|ntdll|__asm|asm\(|x86_64|amd64|_M_X64|__x86_64__|mmap\(|mprotect\(|pthread|sigaction|sys/mman\.h' src gpu/shim || true
+
+            echo
+            echo "=== Runtime compilation rules ==="
+            rg -n -C 4 'GOW3_RUNTIME|runtime\*\.c|gow3-probe|if \(WIN32\)|if \(NOT WIN32\)' gpu/CMakeLists.txt
+          } > ../audit/runtime-portability-report.txt
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: GOW3-Runtime-Portability-Report
+          path: audit/runtime-portability-report.txt
+          if-no-files-found: error
+          retention-days: 14
