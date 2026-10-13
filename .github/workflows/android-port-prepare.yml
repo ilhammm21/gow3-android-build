@@ -40,11 +40,12 @@ jobs:
           git -C gow3_pc submodule status
           echo "=== CMake files ==="
           find gow3_pc -name CMakeLists.txt -print
-          
-    - name: Upload preparation report
+```yaml
+      - name: Upload preparation report
         uses: actions/upload-artifact@v4
         with:
           name: android-arm64-preparation
           path: gow3_pc/CMakeLists.txt
           if-no-files-found: error
           retention-days: 7
+```
