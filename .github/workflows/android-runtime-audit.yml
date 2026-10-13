@@ -11,6 +11,11 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
+      - name: Install audit tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ripgrep
+
       - name: Fetch source
         run: |
           git clone --branch windows-v2.1.7 --depth 1 --recurse-submodules https://github.com/FelipePrado0/gow3_pc.git upstream
@@ -23,17 +28,18 @@ jobs:
           set -eu
           cd upstream
           mkdir -p ../audit
+
           {
             echo "=== Runtime source files ==="
-            find src -maxdepth 2 -type f \( -name 'runtime*.c' -o -name 'runtime*.h' -o -name 'compat*.c' -o -name 'compat*.h' -o -name 'probe.c' \) -print | sort
+            find src -maxdepth 3 -type f \( -name 'runtime*.c' -o -name 'runtime*.h' -o -name 'compat*.c' -o -name 'compat*.h' -o -name 'probe.c' \) -print 2>/dev/null | sort || true
 
             echo
-            echo "=== Platform-specific APIs and CPU assumptions ==="
-            rg -n -i 'windows\.h|VirtualAlloc|VirtualProtect|VirtualFree|GetProcAddress|LoadLibrary|WinSock|bcrypt|ntdll|__asm|asm\(|x86_64|amd64|_M_X64|__x86_64__|mmap\(|mprotect\(|pthread|sigaction|sys/mman\.h' src gpu/shim || true
+            echo "=== Platform APIs and CPU assumptions ==="
+            rg -n -i 'windows\.h|VirtualAlloc|VirtualProtect|VirtualFree|GetProcAddress|LoadLibrary|WinSock|bcrypt|ntdll|__asm|asm\(|x86_64|amd64|_M_X64|__x86_64__|mmap\(|mprotect\(|pthread|sigaction|sys/mman\.h' src gpu/shim 2>/dev/null || true
 
             echo
             echo "=== Runtime compilation rules ==="
-            rg -n -C 4 'GOW3_RUNTIME|runtime\*\.c|gow3-probe|if \(WIN32\)|if \(NOT WIN32\)' gpu/CMakeLists.txt
+            rg -n -C 4 'GOW3_RUNTIME|runtime\*\.c|gow3-probe|if \(WIN32\)|if \(NOT WIN32\)' gpu/CMakeLists.txt 2>/dev/null || true
           } > ../audit/runtime-portability-report.txt
 
       - name: Upload report
