@@ -1,4 +1,4 @@
-name: Android ARM64 Port Preparation
+name: Android ARM64 Runtime Port
 
 on:
   workflow_dispatch:
@@ -7,36 +7,45 @@ permissions:
   contents: read
 
 jobs:
-  prepare:
+  inspect-runtime:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout starter repository
-        uses: actions/checkout@v4
 
-      - name: Install Git and build tools
+    steps:
+      - name: Install tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y git cmake ninja-build python3
+          sudo apt-get install -y git python3 ripgrep
 
-      - name: Install Android NDK
-        uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: r27c
-
-      - name: Clone game source
+      - name: Clone source
         run: |
           git clone --recurse-submodules \
             --branch windows-v2.1.7 \
             https://github.com/FelipePrado0/gow3_pc.git \
             gow3_pc
 
-      - name: Check Android toolchain and source
+      - name: Inspect runtime portability
         run: |
-          echo "=== NDK ==="
-          echo "$ANDROID_NDK_HOME"
-          echo "=== Source commit ==="
-          git -C gow3_pc rev-parse HEAD
-          echo "=== Submodules ==="
-          git -C gow3_pc submodule status
-          echo "=== CMake files ==="
-          find gow3_pc -name CMakeLists.txt -print
+          mkdir -p output
+          {
+            echo "=== Runtime source files ==="
+            find gow3_pc/src -maxdepth 2 -type f
+            echo
+            echo "=== Platform-specific APIs ==="
+            rg -n \
+              'VirtualAlloc2|VirtualProtect|VirtualFree|mmap|mprotect|CreateThread|pthread|__Ux86_64_setcontext' \
+              gow3_pc/src || true
+            echo
+            echo "=== Build entry points ==="
+            find gow3_pc -maxdepth 2 -type f \
+              \( -name 'build.sh' \
+              -o -name 'CMakeLists.txt' \
+              -o -name 'shell.nix' \) -print
+          } | tee output/runtime-report.txt
+
+      - name: Upload runtime report
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-arm64-runtime-report
+          path: output/runtime-report.txt
+          if-no-files-found: error
+          retention-days: 7
