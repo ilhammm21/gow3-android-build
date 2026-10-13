@@ -1,0 +1,42 @@
+name: Android ARM64 Port Preparation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout starter repository
+        uses: actions/checkout@v4
+
+      - name: Install Git and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git cmake ninja-build python3
+
+      - name: Install Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27c
+
+      - name: Clone game source
+        run: |
+          git clone --recurse-submodules \
+            --branch windows-v2.1.7 \
+            https://github.com/FelipePrado0/gow3_pc.git \
+            gow3_pc
+
+      - name: Check Android toolchain and source
+        run: |
+          echo "=== NDK ==="
+          echo "$ANDROID_NDK_HOME"
+          echo "=== Source commit ==="
+          git -C gow3_pc rev-parse HEAD
+          echo "=== Submodules ==="
+          git -C gow3_pc submodule status
+          echo "=== CMake files ==="
+          find gow3_pc -name CMakeLists.txt -print
