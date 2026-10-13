@@ -1,0 +1,54 @@
+
+name: Android ARM64 Compiler Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+
+      - name: Install Android NDK
+        run: sdkmanager "ndk;27.2.12479018"
+
+      - name: Compile ARM64 native program
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          NDK="$ANDROID_HOME/ndk/27.2.12479018"
+          CC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
+
+          mkdir -p compiler-test
+
+          cat > compiler-test/hello.c <<'EOF'
+          #include <stdio.h>
+
+          int main(void) {
+              printf("Android ARM64 compiler works!\n");
+              return 0;
+          }
+          EOF
+
+          "$CC" compiler-test/hello.c -o compiler-test/hello-arm64
+          file compiler-test/hello-arm64
+          echo "SUCCESS: ARM64 native executable compiled."
+
+      - name: Upload compiled test
+        uses: actions/upload-artifact@v4
+        with:
+          name: Android-ARM64-Compiler-Test
+          path: compiler-test/hello-arm64
+          if-no-files-found: error
+          retention-days: 7
